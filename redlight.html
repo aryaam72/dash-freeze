@@ -1,0 +1,1066 @@
+<!-- *********************************************************
+* Nonwimp2:
+* CS 86 Fall 2024
+* Main Coding File
+* Authors: 
+*    Aryaa Modi (aryaa.modi@tufts.edu)
+*    Bonu Shonazarova (shakhrbonu.shonazarova@tufts.edu)
+*    Allison Zhang (yiming.zhang2@tufts.edu)
+********************************************************* -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Red-Light Green-Light</title>
+    <script src="https://cdn.jsdelivr.net/npm/handtrackjs@latest/dist/handtrack.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bree+Serif&family=Pixelify+Sans:wght@400..700&family=Tiny5&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            background-color: #F5F5F5;
+        }
+
+        #video {
+            display: none;
+        }
+
+        #gameBoard {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            border-radius: 10px;
+            border: 10px solid #D12760;
+            overflow: auto;
+            width: auto;
+            background-color: #000000;
+        }
+
+        #gameBoard>div>canvas,
+        #gameBoard>canvas,
+        #gameBoard>div>div {
+            border: 5px solid #D12760;
+            border-radius: 10px;
+            margin: 20px;
+        }
+
+        #container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: auto;
+        }
+
+        h1 {
+            font-family: "Tiny5", sans-serif;
+            font-weight: 900;
+            font-size: 50px;
+        }
+
+        #menu {
+            display: flex;
+            height: 100%;
+        }
+
+        #instructions {
+            width: 50%;
+            height: 100%;
+            border-right: 5px solid #D12760;
+            font-family: "Pixelify Sans", sans-serif;
+            font-size: 14px;
+            font-weight: 300;
+            color: #ffffff;
+            height: 275px;
+            max-width: 217.500px;
+        }
+
+        #instructions>ul {
+            max-height: 255px;
+            height: 100%;
+            padding: 10px 10px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        #buttonList {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            width: 50%;
+        }
+
+        .button-wrapper {
+            width: 70%;
+            display: flex;
+            justify-content: center;
+        }
+
+        #button-red,
+        #button-green {
+            background-color: #000000;
+            border: 5px solid;
+            padding: 30px 30px;
+            font-size: 30px;
+            font-family: 'Tiny5', sans-serif;
+            cursor: pointer;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            min-width: 178.5px;
+            text-align: center;
+            border-radius: 10px;
+            font-weight: 300;
+        }
+
+        #button-red {
+            color: #8B0000;
+            border-color: #8B0000;
+        }
+
+        #button-green {
+            color: #006400;
+            border-color: #006400;
+        }
+
+        #button-red:hover {
+            background-color: #8B0000;
+            color: white;
+        }
+
+        #button-green:hover {
+            background-color: #006400;
+            color: white;
+        }
+
+        #button-red:active {
+            background-color: darkred;
+            color: white;
+        }
+
+        #button-green:active {
+            background-color: darkgreen;
+            color: white;
+        }
+    </style>
+    <script>
+        //Person class representing the players within the simulation 
+        class Person {
+            constructor(number, speed, x, y) {
+                this._number = number;
+                this._speed = speed;
+                this._shoeSpeed = speed + 2;
+                this._x = x;
+                this._y = y;
+                this._width = 30;
+                this._height = 60;
+                this._status = true;
+                this._chosen = false;
+                this._move = false;
+                this._moveHor = false;
+                this._shield = false;
+                this._shoes = false;
+                this._lives = 0;
+            }
+
+            //function for moving the player 
+            move(timeScale) {
+                if (this._chosen && this._move && this._status) {
+                    if (this._shoes) {
+                        this._y -= this._shoeSpeed * timeScale;
+                    } else {
+                        this._y -= this._speed * timeScale;
+                    }
+
+                    if (this._y < 0) {
+                        this._y = 600;
+                    }
+                }
+            }
+
+            isSafe() {
+                return this._y <= 130;
+            }
+
+            //drawing the person by parts 
+            draw(gc) {
+                gc.lineWidth = 2;
+                // draw body
+                gc.beginPath();
+                gc.strokeStyle = "#000000";
+
+                if (this._shield) {
+                    gc.fillStyle = "#e7c22b";
+                } else {
+                    gc.fillStyle = "#006600";
+                }
+
+                gc.rect(this._x, this._y, 30, 60);
+                gc.fill();
+                gc.stroke();
+                gc.closePath();
+
+                // torso
+                gc.beginPath();
+                gc.rect(this._x, this._y + 20, this._width, this._height / 3);
+                gc.fillStyle = "#ffffff";
+                gc.font = "15px Arial";
+                gc.textAlign = "center";
+                gc.textBaseline = "middle";
+                const textX = this._x + this._width / 2;
+                const textY = this._y + 30;
+                gc.fillText(this._number, textX, textY); // draw the number
+                gc.closePath();
+
+                //head
+                if (this instanceof YoungPerson) {
+                    gc.beginPath();
+                    gc.fillStyle = "#000000";
+                    gc.rect(this._x, this._y, this._width, this._height / 4);
+                    gc.fill();
+                    gc.closePath()
+                } else {
+                    gc.beginPath();
+                    gc.fillStyle = "#cccccc";
+                    gc.rect(this._x, this._y, this._width, this._height / 4);
+                    gc.fill();
+                    gc.closePath();
+                }
+
+                //neck
+                gc.beginPath();
+                gc.fillStyle = "#ffd9b3";
+                gc.rect(this._x, this._y + 15, this._width, this._height / 12);
+                gc.fill();
+                gc.closePath();
+
+                if (this._shoes) {
+                    gc.beginPath();
+                    gc.fillStyle = "#e37736";
+                    gc.rect(this._x, this._y + 55, this._width / 2, 5);
+                    gc.rect(this._x + (this._width / 2), this._y + 55, this._width / 2, 5);
+                    gc.fill();
+                    gc.closePath();
+                }
+
+                //legs
+                gc.beginPath();
+                gc.strokeStyle = "#000000";
+                gc.lineWidth = 2;
+                gc.moveTo(this._x + this._width / 2, this._y + this._height - 15);
+                gc.lineTo(this._x + this._width / 2, this._y + this._height);
+                gc.stroke();
+                gc.closePath();
+
+                gc.beginPath();
+                gc.strokeStyle = "#000000";
+                gc.lineWidth = 2;
+                gc.moveTo(this._x, this._y + this._height - 20);
+                gc.lineTo(this._x + this._width, this._y + this._height - 20);
+                gc.stroke();
+                gc.closePath();
+
+                if (!this._status) {
+                    gc.beginPath();
+                    gc.globalAlpha = 0.5;
+                    gc.fillStyle = "#ff0000";
+                    gc.rect(this._x, this._y, 30, 60);
+                    gc.fill();
+                    gc.globalAlpha = 1;
+                    gc.closePath();
+                }
+            }
+
+            // getters and setters for the variables of the Person class 
+            setChosen(val) {
+                this._chosen = val;
+            }
+
+            setMove(val) {
+                this._move = val;
+            }
+
+            getStatus() { return this._status }
+            getMove() { return this._move }
+            getMoveHor() { return this._moveHor }
+            setMoveHor(val) {
+                this._moveHor = val;
+            }
+
+            killPlayer() {
+                if (this._shield) {
+                    setTimeout(() => {
+                        this._shield = false;
+                    }, 3000);
+                } else {
+                    this._move = false;
+                    this._moveHor = false;
+                    this._status = false;
+                }
+            }
+
+            getDistance() { return this._y }
+
+            // manages the horizontal movement of players
+            moveHorizontal(direction) {
+                if (this._status && this._chosen) {
+                    this._moveHor = true;
+                    if (direction == "left") {
+                        if (this._shoes) { this._x -= this._shoeSpeed; }
+                        else { this._x -= this._speed; }
+                    } else if (direction == "right") {
+                        if (this._shoes) { this._x += this._shoeSpeed; }
+                        else { this._x += this._speed; }
+                    }
+
+                    if (this._x < 0) this._x = 0;
+                    if (this._x + this._width > 640) this._x = 640;
+                }
+
+            }
+
+            // checks for collisions between the player and the 'gifts'
+            collision(x, y, width, height, objType) {
+                if (this._x + this._width < x || this._x > x + width ||
+                    this._y + this._height < y || this._y > y + height) {
+                    return false;
+                }
+
+                if (objType == "shoe") {
+                    this._shoes = true;
+                } else if (objType == "shield") {
+                    this._shield = true;
+                }
+
+                return true;
+            }
+
+
+        };
+
+        // subclass of the Person class representing the Older players 
+        class OldPerson extends Person {
+            constructor(id, speed, x, y) {
+                super(id, speed, x, y);
+            }
+        };
+
+        // subclass of the Person class representing the Younger players
+        class YoungPerson extends Person {
+            constructor(id, speed, x, y) {
+                super(id, speed, x, y);
+            }
+        };
+
+        // manages the shield object 
+        class Shield {
+            constructor(x, y) {
+                this._x = x;
+                this._y = y;
+                this._width = 35;
+                this._height = 35;
+                this._equipped = false;
+            }
+
+            draw(gc) {
+                const image = document.getElementById("shield");
+
+                if (!this._equipped) {
+                    gc.drawImage(image, this._x, this._y, this._width, this._height);
+                }
+            }
+
+            itemPickUp() {
+                this._equipped = true;
+            }
+
+            // getting the parameters of the shield 
+            getX() { return this._x }
+            getY() { return this._y }
+            getW() { return this._width }
+            getH() { return this._height }
+        };
+
+        // manages the shoes object 
+        class Shoes {
+            constructor(x, y) {
+                this._x = x;
+                this._y = y;
+                this._width = 20;
+                this._height = 15;
+                this._equipped = false;
+            }
+
+            draw(gc) {
+                const image = document.getElementById("shoes");
+
+                if (!this._equipped) {
+                    gc.drawImage(image, this._x, this._y, 50, 50);
+                }
+            }
+
+            itemPickUp() {
+                this._equipped = true;
+            }
+
+            // getting the parameters of the shoes 
+            getX() { return this._x }
+            getY() { return this._y }
+            getW() { return this._width }
+            getH() { return this._height }
+        };
+
+        // manages the doll object 
+        class Doll {
+            constructor() {
+                this._x = 285;
+                this._y = 33;
+                this._width = 478;
+                this._height = 522;
+                this._facingFront = false;
+            }
+
+            draw(gc) {
+                const dollBack = document.getElementById("dollBack");
+                const dollFace = document.getElementById("dollFace");
+                const image = this._facingFront ? dollFace : dollBack;
+
+                gc.drawImage(image, this._x, this._y, this._width, this._height);
+            }
+
+            // rotate the doll's face 
+            toggleFace() {
+                this._facingFront = !this._facingFront;
+                let gc = document.getElementById("bgCanvas").getContext("2d");
+                this.draw(gc);
+            }
+
+            getDirection() { return this._facingFront }
+        }
+
+        // manages the signal object 
+        class Signal {
+            constructor() {
+                this._x = -10;
+                this._y = 12;
+                this._width = 478;
+                this._height = 522;
+                this._signalOn = false;
+            }
+
+            draw(gc) {
+                const signalOff = document.getElementById("signalOff");
+                const signalOn = document.getElementById("signalOn");
+                const image = this._signalOn ? signalOn : signalOff;
+                gc.drawImage(image, this._x, this._y, this._width, this._height);
+            }
+
+            // rotate the signal 
+            toggleSignal() {
+                this._signalOn = !this._signalOn;
+                let gc = document.getElementById("bgCanvas").getContext("2d");
+                this.draw(gc);
+            }
+        }
+
+        // manages the timebar 
+        class TimeBar {
+            constructor(totalTimeInSeconds = 90) {
+                this._x = 0;
+                this._y = 0
+                this._width = 640;
+                this._height = 20;
+                this._totalTime = totalTimeInSeconds * 1000;
+                this._elapsedTime = 0;
+            }
+
+            draw(gc) {
+                // Draw the border of the time bar
+                gc.beginPath();
+                gc.lineWidth = 4;
+                gc.strokeStyle = "#000000";
+                gc.moveTo(this._x, this._y + 20);
+                gc.lineTo(this._x + 640, this._y + 20);
+                gc.stroke();
+                gc.fillStyle = "#25447D";
+                gc.rect(this._x, this._y, 640, this._height);
+                gc.fill();
+                gc.closePath();
+
+                // Draw the timebar itself
+                const remainingWidth = Math.max(0, this._width * (1 - this._elapsedTime / this._totalTime))
+                gc.beginPath();
+                gc.lineWidth = 8;
+                gc.strokeStyle = "#FFFFFF";
+                gc.moveTo(this._x + remainingWidth, this._y);
+                gc.lineTo(this._x + remainingWidth, this._y + 20);
+                gc.stroke();
+                gc.fillStyle = "#B4D5E5";
+                gc.rect(this._x, this._y, remainingWidth, this._height);
+                gc.fill();
+                gc.closePath();
+            }
+
+            decrement(elapsedTime) {
+                this._elapsedTime += elapsedTime;
+            }
+
+            isTimeOver() {
+                return this._elapsedTime >= this._totalTime;
+            }
+        }
+
+        // manges the Status Panel that displays the score 
+        class StatusPanel {
+            constructor(model) {
+                this._x = 100;
+                this._y = 250;
+                this._width = 400;
+                this._height = 200;
+                this._model = model;
+            }
+
+            draw(gc) {
+                // Draw the panel background
+                gc.beginPath();
+                gc.rect(this._x, this._y, this._width, this._height);
+                gc.fillStyle = "#B4D5E5";
+                gc.fill();
+                gc.strokeStyle = "#000000";
+                gc.lineWidth = 2;
+                gc.stroke();
+                gc.closePath();
+
+                // Draw the text on top of the rectangle
+                gc.fillStyle = "#000000";
+                gc.font = "20px Arial";
+                gc.textAlign = "center";
+                gc.textBaseline = "middle";
+
+                // Calculate text positions
+                const textX = this._x + this._width / 2;
+                const textY = this._y + this._height / 2 + 15;
+
+                // Display the game score
+                const scoreText = `Score: ${this._model.getScore()}`;
+                gc.fillText(scoreText, textX, textY);
+
+                const message = "Game Over!";
+                gc.fillText(message, textX, textY - 40);
+            }
+        }
+
+        // manages the general logic of the game and ensure all the componenets 
+        // of the game are working together seamlessly  
+        class Model {
+            constructor(canvasId) {
+                this.id = document.getElementById(canvasId);
+                this.gc = this.id.getContext("2d");
+                this.people = [];
+                this.survivors = [];
+                this.gameInPlay = false;
+                this.gameEnded = false;
+                this.gameIsStarted = false;
+                this.isPaused = false;
+                this.timebar = new TimeBar();
+                this.signal = new Signal(this.gc);
+                this.doll = new Doll(this.gc); // Add a doll instance
+                this.statusPanel = new StatusPanel(this);
+                this._selectedPlayer = null;
+                this.score = 0;
+                this.dollTimeout;
+                this.signalTimeout;
+                this.running = false;
+                this.startTime = null;
+                this.lastTime = null;
+                this.stoppedTime = null;
+
+                this.shields = [];
+                this.shoes = [];
+
+                this.initializeObjects();
+
+                this.animationId = null;
+                this.counter = 0;
+
+                this.counterInterval = setInterval(() => {
+                    this.counter++;
+                }, 1000);
+
+                // Add mouse click listener
+                this.id.addEventListener("click", (event) => this.handleClick(event));
+                this.draw();
+            }
+
+            // initializes the game by creating the players and the gifts
+            initializeObjects() {
+                // Add instances of gifts (2 shields and 3 shoes)
+                this.shields.push(new Shield(Math.random() * 600, Math.random() * 300 + 250));
+                this.shields.push(new Shield(Math.random() * 600, Math.random() * 300 + 250));
+                this.shoes.push(new Shoes(Math.random() * 600, Math.random() * 300 + 250));
+                this.shoes.push(new Shoes(Math.random() * 600, Math.random() * 300 + 250));
+                this.shoes.push(new Shoes(Math.random() * 600, Math.random() * 300 + 250));
+
+                //add three instances of Older Players 
+                this.people.push(new OldPerson(1, 1.5, 100, 600));
+                this.people.push(new OldPerson(2, 1.5, 60, 600));
+                this.people.push(new OldPerson(3, 1.5, 160, 600));
+
+                //add six instances of Younger players 
+                for (let i = 4; i < 10; i++) {
+                    this.people.push(new YoungPerson(i, 3, Math.random() * 600, Math.random() * 40 + 600));
+                }
+            }
+
+            // manages keypressing
+            keyboardInput() {
+                if (this._selectedPlayer) {
+                    // calls the appropriate move function when a key is pressed
+                    document.addEventListener('keydown', (event) => {
+                        if (event.key === 'ArrowRight') {
+                            if (this._selectedPlayer)
+                                this._selectedPlayer.moveHorizontal("right");
+
+                        } else if (event.key === 'ArrowLeft') {
+                            if (this._selectedPlayer)
+                                this._selectedPlayer.moveHorizontal("left");
+                        }
+                    });
+
+                    // when key is released, explicitely reset moveHor to false
+                    document.addEventListener('keyup', (event) => {
+                        if (event.key === 'ArrowRight') {
+                            if (this._selectedPlayer)
+                                this._selectedPlayer.setMoveHor(false);
+
+                        } else if (event.key === 'ArrowLeft') {
+                            if (this._selectedPlayer)
+                                this._selectedPlayer.setMoveHor(false);
+                        }
+                    });
+                }
+            }
+
+            //handles the picking up of the gifts by the players
+            giftPickUp() {
+                // add shoes that have not been picked back into the array
+                let remainingShoes = [];
+                this.shoes.forEach(s => {
+                    if (this._selectedPlayer.collision(s.getX(), s.getY(), s.getW(), s.getH(), "shoe")) {
+                        s.itemPickUp(); // if a collision, item is picked up  
+                    } else {
+                        remainingShoes.push(s);
+                    }
+                });
+                this.shoes = remainingShoes;
+
+                // add shields that have not been picked back into the array
+                let remainingShields = [];
+                this.shields.forEach(s => {
+                    if (this._selectedPlayer.collision(s.getX(), s.getY(), s.getW(), s.getH(), "shield")) {
+                        s.itemPickUp(); // if a collision, item is picked up   
+                    } else {
+                        remainingShields.push(s);
+                    }
+                });
+                this.shields = remainingShields;
+            }
+
+            // handles setting doll to randomly turn
+            toggleDollRotation() {
+                const rotateSignal = () => {
+                    const randomInterval = Math.random() * (5000 - 1000) + 1000;
+                    this.dollTimeout = setTimeout(() => {
+                        if (this.gameInPlay) {
+                            this.signalTimeout = setTimeout(() => {
+                                this.signal.toggleSignal(this.gc);
+                                setTimeout(() => this.doll.toggleFace(this.gc), 1000); // Schedule the next toggle
+                                rotateSignal();
+                            }, randomInterval);
+                        }
+                    }, 1000)
+
+                };
+                rotateSignal();
+            }
+
+            getSelectedPlayer() { return this._selectedPlayer }
+
+            // move players according to the timescale
+            move(timeScale) {
+                this.people.forEach(person => person.move(timeScale));
+                this.draw();
+            }
+
+            // animate the components on the screen according to the time
+            animate(time) {
+                // Calculate the time difference between the current and last frame
+                const timeDiff = this.lastTime ? time - this.lastTime : 0;
+
+                // Calculate the time scale based on the frame rate
+                const timeScale = timeDiff / (1000 / 60);
+
+                // Update the last time
+                this.lastTime = time;
+
+                // Move the players and update the timebar
+                this.move(timeScale);
+                this.timebar.decrement(timeDiff);
+
+                this.draw();
+                this.checkMovement();
+
+                // Check if the player has picked up any gifts and if the 
+                // player has moved past the safe line
+                if (this._selectedPlayer) {
+                    this.giftPickUp();
+                    this.updateSafeList();
+                }
+
+                // Check if all players are dead or the time is over
+                if (this.checkAllDead()) {
+                    this.draw();
+                    this.stop();
+                    return;
+                }
+
+                if (!this.timebar.isTimeOver()) {
+                    this.animationId = requestAnimationFrame((time) => this.animate(time));
+                } else {
+                    this.stop();
+                }
+            }
+
+            draw() {
+                // Only draw if the game is not ended
+                if (!this.gameEnded) {
+                    // Clear the canvas before drawing
+                    this.gc.clearRect(0, 0, this.id.width, this.id.height);
+                    this.timebar.draw(this.gc);
+
+                    this.people.forEach(person => {
+                        person.draw(this.gc);
+                        // Highlight the selected player with a border
+                        if (person === this._selectedPlayer) {
+                            this.gc.beginPath();
+                            this.gc.strokeStyle = "red";
+                            this.gc.lineWidth = 3;
+                            this.gc.rect(person._x - 2, person._y - 2, person._width + 4, person._height + 4);
+                            this.gc.stroke();
+                            this.gc.closePath();
+                        }
+                    });
+
+                    this.shields.forEach(s => {
+                        s.draw(this.gc);
+                    });
+
+                    this.shoes.forEach(shoe => {
+                        shoe.draw(this.gc);
+                    });
+
+                    this.doll.draw(this.gc);
+                    this.signal.draw(this.gc);
+
+                }
+            }
+
+            // Begin the animation loop
+            start() {
+                if (this.gameInPlay) {
+                    location.reload();
+                } else {
+                    this.gameIsStarted = true;
+                    this.toggleDollRotation(); // start rotating the doll
+                    this.gameInPlay = true;
+                    requestAnimationFrame((time) => this.animate(time));
+                    document.getElementById("button-green").innerHTML = "Restart";
+                }
+            }
+
+            // Stop the animation loop
+            stop() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    clearTimeout(this.signalTimeout);
+                    clearTimeout(this.dollTimeout);
+                    this.gameEnded = true;
+                    this.gameInPlay = false;
+                    this.animationId = null;
+
+                    const num = this.people.length;
+
+                    // kill all the players remaining one by one
+                    const killed = new Promise((resolve, reject) => {
+                        (function kill(i) {
+                            if (i <= 0) {
+                                resolve();
+                                return;
+                            }
+                            if (this.people[i - 1].getStatus()) {
+                                setTimeout(() => {
+                                    this.people[i - 1].killPlayer();
+                                    this.people[i - 1].draw(this.gc);
+                                    this.draw(this.gc);
+                                    kill.call(this, --i);
+                                }, 500);
+                            } else {
+                                kill.call(this, --i);
+                            }
+                        }).call(this, this.people.length)
+                    })
+
+                    // count the score and display the status panel
+                    killed.then((value) => {
+                        setTimeout(() => {
+                            this.countScore();
+                            this.statusPanel.draw(this.gc);
+
+                        }, 500);
+                    });
+                }
+
+            }
+
+            //pauses the game at the state the user left it at
+            pause() {
+                // If the game hasn't started, return 
+                // or if the game has ended, return
+                if (!this.gameIsStarted) return;
+                if (this.gameEnded) return;
+
+                this.isPaused = !this.isPaused;
+                if (this.isPaused) {
+                    cancelAnimationFrame(this.animationId);
+                    clearTimeout(this.signalTimeout);
+                    clearTimeout(this.dollTimeout);
+                    document.getElementById("button-red").innerHTML = "Unpause";
+                    this.gameInPlay = false;
+                    this.stoppedTime = window.performance.now();
+                    this.animationId = null;
+                } else {
+                    document.getElementById("button-red").innerHTML = "Pause";
+                    this.toggleDollRotation();
+                    this.gameInPlay = true;
+                    this.lastTime += window.performance.now() - this.stoppedTime;
+                    this.animationId = requestAnimationFrame((time) => (this.animate(time)));
+                }
+            }
+
+            // Handle click event when canvas is clicked on
+            handleClick(event) {
+                if (!this.gameIsStarted) return;
+                const rect = this.id.getBoundingClientRect();
+                const clickX = event.clientX - rect.left;
+                const clickY = event.clientY - rect.top;
+
+                // Check if click intersects with any player's rectangle
+                this._selectedPlayer = null;
+                this.people.forEach(person => {
+                    if (
+                        clickX >= person._x &&
+                        clickX <= person._x + person._width &&
+                        clickY >= person._y &&
+                        clickY <= person._y + person._height
+                    ) {
+                        this._selectedPlayer = person; // Select the player
+                        this.keyboardInput();
+                        person.setChosen(true); // Mark the player as chosen
+                    } else {
+                        person.setChosen(false); // Unmark other players
+                    }
+                });
+            }
+
+            // checks if the player is moviing when the doll is facing them
+            checkMovement() {
+                if (this._selectedPlayer != null) {
+                    if (this.doll.getDirection() && (this._selectedPlayer.getMove() || this._selectedPlayer.getMoveHor())) {
+                        this._selectedPlayer.killPlayer();
+                        this._selectedPlayer.setMove(false);
+                        this._selectedPlayer.setMoveHor(false);
+                    }
+                }
+            }
+
+            // checks if all the players currently before the finish line are dead
+            checkAllDead() {
+                let allDead = true;
+                this.people.forEach(person => {
+                    if (person.getStatus()) {
+                        allDead = false;
+                    }
+                });
+
+                return allDead;
+            }
+
+            //keeping track of all the players who made it pass the safe line
+            updateSafeList() {
+                if (this._selectedPlayer.isSafe()) {
+                    let survivor = this.people.filter((survivor) => survivor == this._selectedPlayer);
+                    let others = this.people.filter((players) => players != this._selectedPlayer);
+                    this.people = others;
+                    this.survivors.push(this._selectedPlayer);
+                    this._selectedPlayer = null;
+                }
+            }
+
+            // counts the score of the players who made it past the safe line
+            countScore() {
+                this.survivors.forEach(survivor => {
+                    if (survivor instanceof OldPerson) {
+                        this.score += 4;
+                    } else if (survivor instanceof YoungPerson) {
+                        this.score += 1;
+                    }
+                });
+
+                this.statusPanel.draw(this.gc);
+            }
+
+            getScore() { return this.score }
+        };
+
+        // main class that initializes the game and model 
+        class Main {
+            constructor() {
+                this._myModel = new Model("bgCanvas");
+            }
+
+            getModel() {
+                return this._myModel
+            }
+        };
+
+        window.onload = function () {
+            main = new Main();
+            document.addEventListener
+        }
+    </script>
+</head>
+<body>
+    <div style="display: flex; justify-content: center;">
+        <h1><span style="color:#006400">DASH</span><span style="color:#DAA520;"> AND </span><span
+                style="color:#8B0000">FREEZE</span></h1>
+    </div>
+    <div id="container">
+        <div id="gameBoard">
+            <canvas id="bgCanvas" width="640" height="700" style="background-image: url('Background.png');"></canvas>
+            <div style="display: flex; flex-direction: column; justify-content: space-between; height: 750px;">
+                <canvas id="canvas" width="500" height="375"></canvas>
+                <div id="menu">
+                    <div id="instructions">
+                        <ul style="list-style-type: none; ">
+                            <li style="color: green;">Run to the safe area. </li>
+                            <li style="color: #a20404;">Don't move when she's looking. </li>
+                            <li>Click on a player to <span style="color: red">select</span> them.</li>
+                            <li>Want some speed? Get the <span style="color:#E37736">shoes.</span></li>
+                            <li>Want some protection? Get the <span style="color:#DFBB29">shield.</span></li>
+                            <li>Use your hands to move: open to <span style="color: #a20404;">stop</span>, close to
+                                <span style="color: green;">go</span>, arrow keys: left and right.</li>
+                        </ul>
+                    </div>
+                    <div id="buttonList">
+                        <div class="button-wrapper">
+                            <button id="button-green" onclick="main.getModel().start();">Start</button>
+                        </div>
+                        <div class="button-wrapper">
+                            <button id="button-red" onclick="main.getModel().pause();">Pause</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <video id="video" autoplay></video>
+
+    <div>
+        <img id="signalOff" src="SignalOff.svg" style="display: none;">
+        <img id="signalOn" src="SignalOn.svg" style="display: none;">
+    </div>
+
+    <div>
+        <img id="dollFace" src="dollFacingFront.png" style="display: none;">
+        <img id="dollBack" src="dollFacingBack.png" style="display: none;">
+    </div>
+
+    <div>
+        <img id="shield" src="shield.png" style="display: none;">
+        <img id="shoes" src="shoes.png" style="display: none;">
+    </div>
+
+    <script>
+        // code for working with the handtrack.js api    
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        const modelParams = {
+            flipHorizontal: false,
+            outputStride: 16,
+            imageScaleFactor: 1,
+            maxNumBoxes: 20,
+            iouThreshold: 0.2,
+            scoreThreshold: .55,
+            modelType: "ssd320fpnlite",
+            modelSize: "small",
+            bboxLineWidth: "2",
+            fontSize: 17,
+        };
+
+        function runDetection() {
+            model.detect(video).then(predictions => {
+                context.drawImage(video, 0, 0, video.width, video.height);
+                const person = main.getModel().getSelectedPlayer() != null ? main.getModel().getSelectedPlayer() : null;
+
+                // Draw the bounding box and label for each prediction
+                predictions.forEach(prediction => {
+                    const bbox = prediction.bbox;
+                    const label = prediction.label;
+
+                    context.strokeStyle = label === 'open' ? '#8B0000' : '#006400';
+                    context.lineWidth = 2;
+                    context.strokeRect(bbox[0], bbox[1], bbox[2], bbox[3]);
+                    context.font = '18px Arial';
+                    context.fillStyle = label === 'open' ? '#8B0000' : '#006400';
+                    context.fillText(label, bbox[0], bbox[1] - 10);
+
+                    // if the player is selected, move them based on the hand gesture
+                    if (label === 'open' || label === 'closed' || label === 'pinch') {
+                        if (person != null)
+                            person.setMove((label == "closed" || label == "pinch") ? true : false);
+                    }
+                });
+            });
+        }
+
+        // Load the model and start the video
+        // let model;
+        handTrack.load(modelParams).then(lmodel => {
+            model = lmodel;
+            handTrack.startVideo(video).then(status => {
+                if (status) {
+                    navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 640 },
+                            height: { ideal: 480 }
+                        }
+                    }).then(stream => {
+                        video.srcObject = stream;
+                        video.addEventListener('loadeddata', () => {
+                            setInterval(runDetection, 10);
+                        });
+                    }).catch(err => console.log(err));
+                }
+            });
+        });
+    </script>
+</body>
+</html>
